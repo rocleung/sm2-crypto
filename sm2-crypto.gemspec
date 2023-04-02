@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.description = "sm2-crypto is an implementation of the SM2 encryption and decryption algorithm in pure Ruby based on the OpenSSL"
   spec.homepage = "https://github.com/numbcoder/sm2-crypto"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 2.7.0"
+  spec.required_ruby_version = ">= 2.4.0"
 
   spec.metadata["rubygems_mfa_required"] = "true"
   spec.metadata["homepage_uri"] = spec.homepage
