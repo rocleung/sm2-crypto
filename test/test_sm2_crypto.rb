@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "minitest/autorun"
 require "sm2_crypto"
 require "base64"
@@ -20,14 +21,14 @@ class SM2CryptoTest < Minitest::Test
     assert_equal SM2_DATA.bytes, decrypted_data2.bytes
   end
 
-  def test_option_cipher_mode_0
+  def test_option_cipher_mode
     encrypted_data = SM2Crypto.encrypt(SM2_PUBLIC_KEY, SM2_DATA, cipher_mode: 0)
     decrypted_data = SM2Crypto.decrypt(SM2_PRIVATE_KEY, encrypted_data, cipher_mode: 0)
     assert_equal SM2_DATA, decrypted_data.force_encoding("UTF-8")
   end
 
   def test_encrypt_and_decrypt_long_data
-    msg = SecureRandom.alphanumeric(rand(1000..10000))
+    msg = SecureRandom.alphanumeric(rand(1000..10_000))
     encrypted_data = SM2Crypto.encrypt(SM2_PUBLIC_KEY, msg)
     decrypted_data = SM2Crypto.decrypt(SM2_PRIVATE_KEY, encrypted_data)
     assert_equal msg, decrypted_data
@@ -48,11 +49,50 @@ class SM2CryptoTest < Minitest::Test
   def test_generate_keypairs
     keypair = OpenSSL::PKey::EC.generate("SM2")
     private_key = keypair.private_key.to_s(2)
-    public_key = keypair.public_key.to_bn.to_s(2)
+    public_key = keypair.public_key.to_octet_string(:uncompressed)
 
     msg = SecureRandom.random_bytes(rand(10..100))
     encrypted_data = SM2Crypto.encrypt(public_key, msg)
     decrypted_data = SM2Crypto.decrypt(private_key, encrypted_data)
     assert_equal msg, decrypted_data
+  end
+
+  def test_base64
+    private_key = Base64.decode64("1F2NPo0cF9grhuBNIvH+9vpAC/itfBZjuE2uIYhmaFE=\n")
+    msg = "abc"
+    encrypted_data = "BKpGCI/L1mrP0iFDbmB/ykCWWUnrC+5OuXa7/nyFi86yz33NhVvR+JrPml1fLVISFNsMennZNCMZ4uN4mzngBMhldVQJwszbmYys3d5fZ+EJ7ZJXz1uWRKwE7on574SbTCc5zw=="
+    decrypted_data = SM2Crypto.decrypt(private_key, Base64.decode64(encrypted_data))
+    assert_equal msg, decrypted_data
+  end
+
+  def test_get_publick_key
+    public_key = SM2Crypto.get_public_key(SM2_PRIVATE_KEY)
+    assert_equal SM2_PUBLIC_KEY, public_key
+
+    keypair = OpenSSL::PKey::EC.generate("SM2")
+    private_key = keypair.private_key.to_s(2)
+    public_key = keypair.public_key.to_bn.to_s(2)
+    assert_equal public_key, SM2Crypto.get_public_key(private_key)
+  end
+
+  def test_sign_and_verify
+    msg = "abc"
+    sign = SM2Crypto.sign(SM2_PRIVATE_KEY, msg)
+    assert_equal true, SM2Crypto.verify(SM2_PUBLIC_KEY, msg, sign)
+
+    cjk_msg = "abc1234XYZ@%& 你好，世界！#{SecureRandom.alphanumeric(rand(1000..10_000))}"
+    sign2 = SM2Crypto.sign(SM2_PRIVATE_KEY, cjk_msg)
+    assert_equal true, SM2Crypto.verify(SM2_PUBLIC_KEY, cjk_msg, sign2)
+  end
+
+  def test_sign_and_verify_with_hash
+    msg = "abc"
+    user_id = "313233343536373831323334353637AA"
+    sign = SM2Crypto.sign(SM2_PRIVATE_KEY, msg, sm3_hash: true, user_id: user_id)
+    assert_equal true, SM2Crypto.verify(SM2_PUBLIC_KEY, msg, sign, sm3_hash: true, user_id: user_id)
+
+    cjk_msg = "abc1234XYZ@%& 你好，世界！#{SecureRandom.alphanumeric(rand(1000..10_000))}"
+    sign2 = SM2Crypto.sign(SM2_PRIVATE_KEY, cjk_msg, sm3_hash: true)
+    assert_equal true, SM2Crypto.verify(SM2_PUBLIC_KEY, cjk_msg, sign2, sm3_hash: true)
   end
 end
